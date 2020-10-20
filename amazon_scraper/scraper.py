@@ -1,6 +1,11 @@
 ######################## WebScraper-Amazon ###########################
 
 
+# NOTE: Chrome extension is better; use that for this project
+# https://www.webscraper.io/documentation?utm_source=extension&utm_medium=popup 
+
+
+
 # =============================================================================
 # Amazon Search Results Structure
 # body
@@ -64,7 +69,7 @@ import sys
 # This does not include special promotion at the top of the page (eg. Prime Day Deal on the day I wrote this: 10/13/20)
 # Also does not scrape recommendations such as 'Customers shopped Amazon's Choice for...' and 'Top rated from our brands'
 
-
+# Change this to your desired path
 os.chdir('C:\\Users\\rs\\Desktop\\MScA\\Quarter 1\\MSCA 31012 4\\HW1')
 
 col_names = ['Product','Price','Rating','Number of Ratings','Image Link']
@@ -103,7 +108,10 @@ user_agents = ['Mozilla/5.0 (X11; Ubuntu; Linux x86_64) AppleWebKit/537.36 (KHTM
 
 head_href = 'https://www.amazon.com'
 #product_href = '/s?k=mattress'
+
+# change this to the category (laptops, headphones, etc.) of your choice
 product_href = '/s?rh=n%3A172282%2Cn%3A%21493964%2Cn%3A541966%2Cn%3A13896617011%2Cn%3A565108'
+# start with page 2 because page 1 needs a different parsing method
 start_page = '&page=2'
 url = head_href+product_href+start_page
 
