@@ -1,0 +1,5 @@
+Walmart Search Results Structure
+body
+->div, 'id':'listingRootSection'
+
+product container: div, 'id':'s-search-result'

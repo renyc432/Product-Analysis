@@ -1,0 +1,47 @@
+Amazon Search Results Structure
+body
+->div, 'id':'search'
+->div, 'class':'s-desktop-width-max s-desktop-content sg-row'
+->div,
+->div, 'class':'sg-col-inner'
+->span, 'data-component-type':'s-search-results'
+
+product container: div, 'data-component-type':'s-search-result'
+                    ->div, 'class':'sg-col-inner'
+                    ->span,
+                    (->div, 'data-component-type':'s-impression-logger'
+                    ->div,)
+                    ->div,
+                    ->div, 'class':'a-section a-spacing-medium'
+                    
+- image: span, 'data-component-type':'s-product-image'
+        ->a, 'class':'a-link-normal s-no-outline'
+        ->div, 'class':'a-section aok-relative s-image-square-aspect'
+        ->img, 'src'.link
+
+- title: div, 'class':'a-section a-spacing-none a-spacing-top-small'
+        ->h2, 'class':'a-size-mini a-spacing-none a-color-base s-line-clamp-4'
+        ->a, 'class':'a-link-normal a-text-normal'
+        ->span, 'class': 'a-size-base-plus a-color-base a-text-normal'
+        
+- rating: div, 'class':'a-section a-spacing-none a-spacing-top-micro'
+        ->div, 'class':'a-row a-size-small'
+        ->span, 'aria-label':this label is the rating
+
+    - Number of ratings: span, 'aria-label':this label is the number of ratings
+
+- price: div, 'class':'a-section a-spacing-none a-spacing-top-small'
+        ->div, 'class':'a-row a-size-base a-color-base'
+        ->div, 'class':'a-row'
+        ->a, 'class':'a-size-base a-link-normal a-text-normal'
+        ->span, 'class':'a-price'
+        ->span, 'class':'a-offscreen'.text
+
+
+- next page: div,'class':'a-section a-spacing-none s-result-item s-flex-full-width s-widget'
+            ->span,
+            ->div, 'class':'a-section a-spacing-none a-padding-base'
+            ->div, 'class':'a-text-center'
+            ->ul, 'class':'a-pagination'
+            ->li, 'class':'a-last'
+            ->a, 'href': this is the link

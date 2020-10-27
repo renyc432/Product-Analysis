@@ -1,17 +1,11 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Sun Oct 18 00:22:05 2020
-
-@author: rs
-"""
-
 import json
 import os
+import pandas as pd
 
 
-os.chdir('C:\\Users\\roy79\\Desktop\\Research\\product-analysis')
+os.chdir('C:\\Users\\roy79\\Desktop\\Research\\product-analysis\\walmart_scraper')
 
-
+products = pd.read_csv('walmart_headphones.csv')
 num_pages = 6
 products = []
 for i in range(1,num_pages+1):

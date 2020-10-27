@@ -1,65 +1,15 @@
 ######################## WebScraper-Walmart ###########################
 
 
-
-# =============================================================================
-# Amazon Search Results Structure
-# body
-# ->div, 'id':'search'
-# ->div, 'class':'s-desktop-width-max s-desktop-content sg-row'
-# ->div,
-# ->div, 'class':'sg-col-inner'
-# ->span, 'data-component-type':'s-search-results'
-# 
-# product container: div, 'data-component-type':'s-search-result'
-#                     ->div, 'class':'sg-col-inner'
-#                     ->span,
-#                     (->div, 'data-component-type':'s-impression-logger'
-#                     ->div,)
-#                     ->div,
-#                     ->div, 'class':'a-section a-spacing-medium'
-#                     
-# - image: span, 'data-component-type':'s-product-image'
-#         ->a, 'class':'a-link-normal s-no-outline'
-#         ->div, 'class':'a-section aok-relative s-image-square-aspect'
-#         ->img, 'src'.link
-# 
-# - title: div, 'class':'a-section a-spacing-none a-spacing-top-small'
-#         ->h2, 'class':'a-size-mini a-spacing-none a-color-base s-line-clamp-4'
-#         ->a, 'class':'a-link-normal a-text-normal'
-#         ->span, 'class': 'a-size-base-plus a-color-base a-text-normal'
-#         
-# - rating: div, 'class':'a-section a-spacing-none a-spacing-top-micro'
-#         ->div, 'class':'a-row a-size-small'
-#         ->span, 'aria-label':this label is the rating
-# 
-#     - Number of ratings: span, 'aria-label':this label is the number of ratings
-# 
-# - price: div, 'class':'a-section a-spacing-none a-spacing-top-small'
-#         ->div, 'class':'a-row a-size-base a-color-base'
-#         ->div, 'class':'a-row'
-#         ->a, 'class':'a-size-base a-link-normal a-text-normal'
-#         ->span, 'class':'a-price'
-#         ->span, 'class':'a-offscreen'.text
-# 
-# 
-# - next page: div,'class':'a-section a-spacing-none s-result-item s-flex-full-width s-widget'
-#             ->span,
-#             ->div, 'class':'a-section a-spacing-none a-padding-base'
-#             ->div, 'class':'a-text-center'
-#             ->ul, 'class':'a-pagination'
-#             ->li, 'class':'a-last'
-#             ->a, 'href': this is the link
-# =============================================================================
-
 from bs4 import BeautifulSoup
 import requests
 import random
 import os
 import csv
-from urllib3.exceptions import MaxRetryError
-from urllib3.exceptions import ProxyError
-from requests import Timeout
+#from urllib3.exceptions import MaxRetryError
+#from urllib3.exceptions import ProxyError
+#from requests import Timeout
+#from datetime import datetime
 import sys
 import time
 
@@ -67,10 +17,11 @@ import time
 # Also does not scrape recommendations such as 'Customers shopped Amazon's Choice for...' and 'Top rated from our brands'
 
 # Change this to your desired path
-os.chdir('C:\\Users\\rs\\Desktop\\MScA\\Quarter 1\\msca31012\\Final Project\\product-analysis\\walmart_scraper')
+path = 'C:\\Users\\roy79\\Desktop\\Research\\product-analysis\\walmart_scraper'
+os.chdir(path)
 col_names = ['name', 'wm_ID', 'rating', 'num_of_rating', 'price', 
                      'feat_labels', 'feat_values', 'about_text', 'about_details']
-output = open('walmart_headphones.csv','w',encoding='utf-8',newline='')
+output = open('walmart_headphones_'+time.strftime("%Y%m%d-%H%M%S")+'.csv','w',encoding='utf-8',newline='')
 writer = csv.writer(output)
 writer.writerow(col_names)
 
@@ -111,10 +62,12 @@ head_href = 'https://www.walmart.com'
 # change this to the category (laptops, headphones, etc.) of your choice
 product_href = '/browse/headphones/headphones/3944_133251_1095191_4480?'
 # start with page 2 because page 1 needs a different parsing method
-start_page = 'page=1'
+start_page = 'page=101'
 url = head_href+product_href+start_page
 
 pages = [url]
+
+products_skipped = []
 
 # Page 1 needs a different parsing,
 num_page_listing = 1
@@ -128,59 +81,39 @@ while (pages):
     print('The url is', url)
     #print('Sleep for 3 seconds between each listing page')
     #time.sleep(3)
-    headers['User-Agent'] = random.choice(user_agents)        
-    
-# =============================================================================
-#     # Connect to a new IP address
-#     for num_connection_attempt in range(1,101):
-#         try:
-#             print('Number of connections attempted', num_connection_attempt)
-#             
-#             # This can be problematic as it will select the same proxies
-#             proxy = {'https': 'https://'+random.choice(proxies)}
-#             
-#             print('Proxy used:', proxy)
-#             # This is here because I cannot find a stable proxy;
-#             # proxy = {'https': 'https://176.196.225.54:1088'}
-# 
-#             response = requests.get(url, headers = headers, proxies = proxy, timeout=10.0)
-#             print('Response retrieved', response)
-#             html = response.content
-#             print('Connection established')
-#             break
-#         except (OSError, MaxRetryError, ProxyError, Timeout) as e:
-#             print(e)
-#             #print(e)
-#             if (num_connection_attempt == 100):
-#                 output.close()
-#                 sys.exit(0)
-#             continue   
-# =============================================================================
+    headers['User-Agent'] = random.choice(user_agents)
 
     #url = 'https://www.walmart.com/browse/electronics/wireless-and-bluetooth-headphones/3944_133251_1095191_1230614_1230478?&page=3'    
     for num_request_attempt in range(1,101):
         try:   
             response = requests.get(url,headers=headers)
             html = response.content
+            
+            # use a separate except to catch sys.exit()
             if ('Forbidden' in str(html)):
                 output.close()
                 print('You have reached the end of the listing pages. This category has been crawled. The program will terminate now.')
                 sys.exit(0)
-         
+                
             # Start scraping page
             soup = BeautifulSoup(html, 'lxml')    
             body = soup.find('body')
             table = body.find('ul',attrs={'data-automation-id':'search-result-gridview-items'})
+            
+            products = table.find_all('a',attrs={'data-type':'itemTitles'})
             print('Page html collected')
             break
+        except SystemExit:
+            sys.exit(0)
         except:
             print('##################################################')
-            print('Captcha error, wait 30 seconds and reattempt.')
+            print('Captcha error when requesting a listing page, wait 30 seconds and reattempt.')
             print('##################################################')
             time.sleep(30)
+            if (num_request_attempt % 10 == 0):
+                time.sleep(300)
             continue
         
-    products = table.find_all('a',attrs={'data-type':'itemTitles'})
     
     
     if (products):
@@ -202,37 +135,36 @@ while (pages):
             prod_soup = BeautifulSoup(prod_html, 'lxml')
             primary_info = prod_soup.find('div',{'class':'hf-Bot'})
             name = primary_info.find('h1',{'itemprop':'name'}).text
+            features = prod_soup.find('div',{'class':'btf-content'})
         except:
             print('##################################################')
-            print('Captcha error, try connect with a proxy.')
+            print('Captcha error when requesting a product, try a proxy.')
             print('##################################################')
                 # Connect to a new IP address
             for num_connection_attempt in range(1,101):
                 try:
                     print('Number of connections attempted', num_connection_attempt)
-                    
                     # This can be problematic as it will select the same proxies
                     proxy = {'https': 'https://'+random.choice(proxies)}
                     
                     #print('Proxy used:', proxy)
                     # This is here because I cannot find a stable proxy;
                     # proxy = {'https': 'https://176.196.225.54:1088'}
-                    prod_response = requests.get(prod_url, headers = headers, proxies = proxy, timeout=10.0)
+                    prod_response = requests.get(prod_url, headers = headers,proxies=proxy,Timeout=10.0)
                     prod_html = response.content
                     prod_soup = BeautifulSoup(prod_html, 'lxml')
                     primary_info = prod_soup.find('div',{'class':'hf-Bot'})
                     name = primary_info.find('h1',{'itemprop':'name'}).text
-                    
-                    
+                    features = prod_soup.find('div',{'class':'btf-content'})
+
                     print('Connection established')
                     break
                 except:
-                    #print(e)
-                    #print(e)
-                    #if (num_connection_attempt == 100):
-                    #   output.close()
-                    #   sys.exit(0)
+                    if (num_connection_attempt == 100):
+                        products_skipped.append(prod_url)
+                        print('Product is skipped at', prod_url)
                     continue
+
             continue
         
         wm_ID = primary_info.find('div',{'class':'valign-middle secondary-info-margin-right copy-mini display-inline-block wm-item-number'})
@@ -259,7 +191,6 @@ while (pages):
         else:
             price = ' '
         
-        features = prod_soup.find('div',{'class':'btf-content'})
         feature_hl = features.find('ul',{'class':'SpecHighlights-list Grid text-left'})
         feat_labels = ' '
         feat_values = ' '
@@ -290,16 +221,6 @@ while (pages):
                      feat_labels, feat_values, about_text, about_details]
         writer.writerow(list_info)
             
-    
-    ###########################################################
-    # TODO
-    # 1. Turn img link to pictures
-    # 2. Save to json
-    # 3. Turn to next page
-    #   a. How to parse the href to point to next page
-    #   b. Write all the results
-    ###########################################################
-        
     pages.pop(0)
     
     href = 'page=' + str(num_page_listing+1)
@@ -310,35 +231,5 @@ while (pages):
     print('Page scraped:',num_page_listing,'\n')
     num_page_listing = num_page_listing+1
 output.close()
-
-
-# =============================================================================
-# # These codes read images from url
-# # These urls do not seem to require headers or proxies
-# from PIL import Image
-# from io import BytesIO
-# 
-# img_links = ['https://m.media-amazon.com/images/I/81+pOdurwpL._AC_UL320_.jpg',
-#              'https://m.media-amazon.com/images/I/81etehQ8nqL._AC_UL320_.jpg',
-#              'https://m.media-amazon.com/images/I/61UXzixYkuL._AC_UL320_.jpg',
-#              'https://m.media-amazon.com/images/I/81ERJyaiSuL._AC_UL320_.jpg',
-#              'https://m.media-amazon.com/images/I/81HrfTqoaqL._AC_UL320_.jpg',
-#              'https://m.media-amazon.com/images/I/91aiZs3HDbL._AC_UL320_.jpg',
-#              'https://m.media-amazon.com/images/I/71PYFiUWJTL._AC_UL320_.jpg',
-#              'https://m.media-amazon.com/images/I/81sqVLnXWDL._AC_UL320_.jpg',
-#              'https://m.media-amazon.com/images/I/513klQX5zdL._AC_UL320_.jpg',
-#              'https://m.media-amazon.com/images/I/81NSfScVP4L._AC_UL320_.jpg',
-#              'https://m.media-amazon.com/images/I/81+pOdurwpL._AC_UL320_.jpg',
-#              'https://m.media-amazon.com/images/I/81etehQ8nqL._AC_UL320_.jpg',]
-# 
-# imgs = []
-# for img_link in img_links:
-#     response = requests.get(img_link, headers=headers)
-#     imgs.append(Image.open(BytesIO(response.content)))
-# =============================================================================
-
-
-
-
 
 
