@@ -67,8 +67,8 @@ head_href = 'https://www.newegg.com'
 # Apply type filter on homepage to filter out accessories
 # Headphones & Accessories: select all types other than 'Accessories'
 # Bluetooth headsets & Accessories: select 'Bluetooth Headset' & 'Bluetooth Stereo Headset'
-category_hrefs = ['/p/pl?N=100167718%20600010970%20600010971%20600010967%20600010968%20600095437%20600010972%20600010973%20600010974%20600010975%20600010976%20600095942%20600421069%20600482781%20600476188',
-                  '/p/pl?N=100167729%20600034402%20600034409']
+category_hrefs = ['/p/pl?N=100167718%20600010970%20600010971%20600010967%20600010968%20600095437%20600010972%20600010973%20600010974%20600010975%20600010976%20600095942%20600421069%20600482781%20600476188&PageSize=96',
+                  '/p/pl?N=100167729%20600034402%20600034409&PageSize=96']
 
 for category_href in category_hrefs:
     
@@ -94,9 +94,14 @@ for category_href in category_hrefs:
         #time.sleep(3)
         headers['User-Agent'] = random.choice(user_agents)
     
-        for num_request_attempt in range(1,101):
+        for num_request_attempt in range(1,51):
             try:   
-                response = requests.get(url,headers=headers)
+                
+                 # This can be problematic as it will select the same proxies
+                proxy = None
+                if (num_request_attempt > 1):
+                    proxy = {'https': 'https://'+random.choice(proxies)}
+                response = requests.get(url,headers=headers,proxies=proxy,timeout=10.0)
                 html = response.content
                 print('Page html collected')
                 # Start scraping page
@@ -111,7 +116,7 @@ for category_href in category_hrefs:
             except KeyboardInterrupt:
                 output.close()
                 sys.exit('Keyboard interrupt')  
-            except:
+            except AttributeError:
                 print('##################################################')
                 print('Captcha error when requesting a listing page, wait 30 seconds and reattempt.')
                 print('##################################################')
@@ -119,13 +124,15 @@ for category_href in category_hrefs:
                 if (num_request_attempt % 10 == 0):
                     time.sleep(300)
                 continue
+            except:
+                continue
                 
         for product in products:
             
             #product = products[0]
             prod_url = product.attrs['href']
             is_skipproduct = False
-            for num_connection_attempt in range(1,101):               
+            for num_connection_attempt in range(1,51):               
                 try:
                     #time.sleep((10-2)*np.random.random()+2)
                     
@@ -150,15 +157,26 @@ for category_href in category_hrefs:
                     print('##################################################')
                     print('Captcha error when requesting a product, try connect with a proxy.')
                     print('##################################################')      
-                except:
+                    
                     print('Number of connections attempted', num_connection_attempt)
-                    if (num_connection_attempt == 100):
+                    if (num_connection_attempt == 50):
                         products_skipped.append(prod_url)
                         print('Product is skipped at', prod_url)
                         is_skipproduct = True
+                        print('Sleep for 5 minutes')
+                        time.sleep(300)
+                        
+                except:
+                    print('Number of connections attempted', num_connection_attempt)
+                    if (num_connection_attempt == 50):
+                        products_skipped.append(prod_url)
+                        print('Product is skipped at', prod_url)
+                        is_skipproduct = True
+                        print('Sleep for 5 minutes')
+                        time.sleep(300)
                     continue
             if (is_skipproduct == True):
-                break
+                continue
             #prod_table = prod_soup.find('div',{'class':'row is-product has-side-right has-side-items'})
             
             
@@ -190,13 +208,19 @@ for category_href in category_hrefs:
             
             feat_table = prod_soup.find_all('div', {'class':'tab-pane'})
             if (len(feat_table) == 3):
-                about = feat_table[0].find('div',{'id':'arimemodetail'}).text
+                about = feat_table[0].find('div',{'id':'arimemodetail'})
+                if (about is not None):
+                    about = about.text
                 feat_table = feat_table[1]
                 
             elif (len(feat_table) == 2):
                 feat_table = feat_table[0]
             
             # There is another elif: 2 panes and first is 'Overview', not 'Specs'
+            # it's also possible that overview pane follows a different format;
+            #   Example: Beyerdynamic DT 770 Pro 250 Ohm (459046) Studio Reference Headphones (Closed)
+            #   We can still find information there
+            
             
             feat_rows = feat_table.find_all('tr')
             if (feat_rows is not None):
@@ -242,6 +266,9 @@ for category_href in category_hrefs:
         
         if (num_page_listing == 101):
             print('The program has reached the end of the listing pages. This category has been crawled.')
+            with open('products_skipped'+time.strftime("%Y%m%d-%H%M%S")+'.csv','w') as prod_skipped_out:
+                for prod in products_skipped:
+                    prod_skipped_out.write('%s\n' % prod)
             break
         
 print('The program has finished scraping all categories. The program will be terminated now.')
