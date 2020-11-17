@@ -1,22 +1,7 @@
 import pandas as pd
-import numpy as np
-import re
 import nltk
 from nltk.corpus import stopwords
 
-# Clean unstructured text
-def about_prep(products, colnames):
-    colnames = ['about_text','about_details']
-    if (len(colnames) > 1):
-        products['about_text_clean'] = products[colnames[0]]
-        for i in range(1,len(colnames)-1):
-            products['about_text_clean'] = products['about_text_clean'] + ' ' + products[colnames[i]]
-    
-    products['about_text_clean'] = products[colnames]
-    
-    products['about_text_clean'] = products['about_text_clean'].str.lower()    
-    products['about_text_clean'] = [re.sub('[^a-zA-Z#.]', ' ', prod) for prod in products['about_text_clean']]
-    
 # Calculate word (unigram) frequency
 def unigram_freq(products):
     word_token = products['about_text_clean'].apply(lambda x: x.split())
@@ -45,14 +30,3 @@ def most_freq_word_feat(freq_dist, feature):
     #word_freq_df = freq_dist.sort_values(feature,ascending=False)
     freq = freq_dist[freq_dist['word'].str.contains(feature)].head(50)
     print(freq.sort_values('count',ascending=False))
-
-
-#remove '' and []
-def clean_list_helper(string):
-    if (string is np.nan):
-        return ''
-    return re.sub('[\[\]\' ]', '', string)
-    
-def list_clean(products):
-    products['feat_labels_clean'] = [clean_list_helper(feat_row) for feat_row in products['feat_labels']]
-    products['feat_values_clean'] = [clean_list_helper(feat_row) for feat_row in products['feat_values']]
