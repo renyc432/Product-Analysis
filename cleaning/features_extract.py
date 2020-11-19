@@ -1,48 +1,38 @@
-import json
 import numpy as np
 import pandas as pd
 import re
 
-features_re = {'brand':'(\w+)',
-            # connection: if both wireless and wired (detachable cable), then it's considered wireless
-            'connection':'bluetooth|wireless',
-            'type': '(in|on|over)(-the)?(\-| )ear',
-            'battery':'(\d+(\.\d+)?)+(\+)?( )?(hour|hours|hrs)',
-            'microphone':'mic',
-            'noise': '(noise|sound)(\-| )?(cancel|reduct|isolat)(\w+)',
-            'water': 'water(\-| )?(proof|resist)',
-#            'ipx':'ipx[0-9]',
-#            'cord':'TODO: cord',
-#            'warranty':'TODO: warranty',
-            'weight':'(\d+(\.\d+)?)( )?(g|kg|oz|lb|lbs)',
-#            'driver': 'TODO: driver',
-            'impedance': '(\d)( )?(ohms)',
-            'frequency response': '(\d+)( )?(hertz|hz|kilohertz|khz)',
-            'sensitivity': '(\d+)( )?(decibels|decibel|db)( adjusted)?',
-            'UPC': 'UPC(:)?(\s+)?(\d+)',
-#            'model number': 'UPC(:)?(\s+)?(\d+)',
-            'manufacturerID': '(manufacturer|mfr|model)?(_|\s)?(number|#|ID|model)?( is)?(\s)?(:)?(\s+)?(\d+)'
-    }
 
-
+#test = 'manufacturerID: 3212-da_wd'
+#re.search('(manufacturer|mfr|model)?(_|\s)?(number|#|ID|model)?( is)?(\s)?(:)?(\s+)?[\w\-+]+',test)
 
 # helper: replace cells with 0 in these columns
-def replace_blank(products, colnames):
-    for feat in colnames:
+def replace_blank(products, feat_colnames):
+    for feat in feat_colnames:
         products[feat] = products[feat].replace(r'^\s*$', 0, regex=True)
 
-feat_replace = ['connection','microphone']
+
+# extracts numbers from columns;
+# there must be only one number in the cell; 
+# if more than one is present, the first number must be the target number
+def numeric_extract(products, colnames_numeric):
+    if (type(colnames_numeric) == list):
+        for col in colnames_numeric:
+            products[col] = [re.search('(\d+)', ID, re.I).group()
+                             if type(ID) == str else np.nan for ID in products[col]]
+    else:
+        products[colnames_numeric] = [re.search('(\d+)', ID, re.I).group() 
+                                      if type(ID) == str else np.nan for ID in products[colnames_numeric]]
+
+# extracts the last element of the string
+def mfrID_extract(products, colname_mfrID):
+    products[colname_mfrID] = [ID.split()[-1] 
+                               if type(ID) == str else np.nan for ID in products[colname_mfrID]]
 
 
-# all IDs should be integer
-def ID_extract(products, ID_colnames):
-    for col in ID_colnames:
-        products[col] = [re.search('(\d+)', ID, re.I).group() if type(ID) == str else np.nan for ID in products[col]]
-        
-
-def feature_extraction_helper (features_re, feat, product_desp):
+def feat_ext_helper (features_re, feat, product_desp):
     
-    # battery: if battery_life < 4, then that is likely charging time
+    # battery: if battery_life < 5, then that is likely charging time
     if (feat == 'battery'):
         battery = re.findall(features_re['battery'], product_desp, re.I)    
         if (battery):
@@ -92,33 +82,22 @@ def feature_extraction_helper (features_re, feat, product_desp):
     return np.nan
 
 
-def feature_extraction(products):
+def feature_extract (products, features_re):
     feat_ext_nested_list = []
     for product_description in products['about_text_clean']:
-        feat_ext_row = [feature_extraction_helper(features_re, feat, product_description) for feat in features_re.keys()]
+        feat_ext_row = [feat_ext_helper(features_re, feat, product_description) for feat in features_re.keys()]
         feat_ext_nested_list.append(feat_ext_row)    
     feat_ext_df = pd.DataFrame(feat_ext_nested_list, columns = list(features_re.keys()))
-    
-    # replace empty cells
-    replace_blank(feat_ext_df, feat_replace)
     
     feat_ext_df['connection'] = feat_ext_df['connection'].replace('bluetooth','wireless')
     return feat_ext_df
 
 
-test = 'Bose headphone quiet noise cancelling'
-re.search('(\w+)',test)
+#test = 'Bose headphone quiet noise cancelling'
+#re.search('(\w+)',test)
 
 
-# remove decorative strings: 
-# rating, price: column names of number of rating, price
-def remove_decorative(products, num_rating=False, price=False):
-    if (num_rating):
-        products[num_rating] = [int(r.split()[0]) if r is not np.nan else np.nan for r in products[num_rating] ]    
-    if (price):
-        products[price] = [float(re.search('(\d+(\.\d+)?)', p).group()) if p is not np.nan else np.nan for p in products[price]]
-        #products['price'] = [float(p[1:]) if p is not np.nan else '' for p in products['price']]
-    
+
     
     
 
@@ -193,9 +172,15 @@ def factorize(products,
     
     # Wireless
     if (wireless_colname):
-        is_wired = products[wireless_colname].str.contains(r'wired', flags = re.I).replace(np.nan,True)
-        products.loc[is_wired,wireless_colname] = 'N'
-        products.loc[-is_wired,wireless_colname] = 'Y'
+        if (type(water_colname) == list):
+            for wireless in wireless_colname:
+                is_wired = products[wireless].str.contains(r'wired', flags = re.I).replace(np.nan,True)
+                products.loc[is_wired,wireless] = 'N'
+                products.loc[-is_wired,wireless] = 'Y'
+        else:
+            is_wired = products[wireless_colname].str.contains(r'wired', flags = re.I).replace(np.nan,True)
+            products.loc[is_wired,wireless_colname] = 'N'
+            products.loc[-is_wired,wireless_colname] = 'Y'
         
     
     # This is for walmart

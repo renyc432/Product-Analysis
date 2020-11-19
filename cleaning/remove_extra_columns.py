@@ -3,18 +3,31 @@ import time
 from execute_cleaning import working_dir
 
 
-# customize columns to remove after cleaning the data
 
-col_remove = ['about_text',
-              'about_details',
-              'about_text_clean',
-              'feat_labels',
-              'feat_values',
-              'feat_labels_clean',
-              'feat_values_clean',
-              'RecommendedUse',
-              'CompatibleDevices',
-              'WirelessTechnology']
+# customize columns to remove after cleaning the data
+col_remove_walmart = ['about_text',
+                            'about_details',
+                            'about_text_clean',
+                            'feat_labels',
+                            'feat_values',
+                            'feat_labels_clean',
+                            'feat_values_clean',
+                            'RecommendedUse',
+                            'CompatibleDevices',
+                            'WirelessTechnology']
+
+col_remove_bestbuy = ['about_text',
+                            'about_details',
+                            'about_text_clean',
+                            'feat_labels',
+                            'feat_values',
+                            'feat_labels_clean',
+                            'feat_values_clean',
+                            'RecommendedUse',
+                            'CompatibleDevices',
+                            'WirelessTechnology']
+
+col_remove = col_remove_walmart
 
 def remove_columns(products, colnames):
     products.drop(colnames, inplace=True, axis=1)

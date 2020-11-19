@@ -1,16 +1,16 @@
 import os
 import pandas as pd
 import time
+
 import data_prep
 import freq_analysis
-from features_extract import ID_extract
-from features_extract import feature_extraction
-from features_extract import remove_decorative
+from features_extract import numeric_extract
+from features_extract import feature_extract
+from features_extract import mfrID_extract
 from features_extract import factorize
 from features_extract import replace_blank
-
 from list_flatten import list_flatten
-import re
+from parameters_by_retailer import param_retailer as param
 
 ######################### change these parameters ############################
 path = 'C:\\Users\\roy79\\Desktop\\Research\\product-analysis'
@@ -18,24 +18,37 @@ path = 'C:\\Users\\roy79\\Desktop\\Research\\product-analysis'
 data_path = path+'\\walmart_scraper\\'+'walmart_headphones_openRefine.csv'
 working_dir = path + '\\cleaning'
 
+#DEBUG
+data_path = working_dir+'\\bestbuy_hdphone.csv'
 
-colnames = {
-    # colname: name of product
-    'COLNAME_TITLE': 'name',
-    # colname: retailer ID
-    'COLNAME_RETAILER_ID': 'wm_ID',
-    # colname: rating
-    'COLNAME_RATING': 'rating',
-    # colname: number of ratings
-    'COLNAME_NUM_RATING': 'num_of_rating',
-    # colname: price
-    'COLNAME_PRICE': 'price',
-    # Colnames of about / description
-    'COLNAME_ABOUT': ['about_text','about_details'],
-    # Colnames of features in ['wireless', 'type'] format
-    'COLNAME_FEAT_LABELS': 'feat_labels',
-    'COLNAME_FEAT_VALUES': 'feat_values'
-    }
+retailer_name = 'bestbuy'
+
+# d.n change colnames and features_re
+colnames = param[retailer_name]['colnames']
+features_re = param[retailer_name]['features_re']
+
+### The parameters below can be determined by looking at the columns and variable types in the dataset
+### However, some may not be obvious at first; and can be determined after we step through remove_used()
+# set to None if not needed
+# used as arguments in factorize()
+factorize_conn_col_walmart = 'Wireless'
+factorize_type_col_walmart = ['HeadphoneType','HeadphoneStyle','type']
+
+factorize_conn_col_bestbuy = None
+factorize_type_col_bestbuy = 'type'
+
+factorize_conn_col = factorize_conn_col_bestbuy
+factorize_type_col = factorize_type_col_bestbuy
+
+
+# extract integer/float (ID, price, etc.) from these columns
+numeric_columns = [colnames['COLNAME_NUM_RATING'], 
+                  colnames['COLNAME_PRICE'],
+                  #colnames['COLNAME_RETAILER_ID'],
+                  'UPC']
+# replace np.nan in these columns with 0
+feat_replace = ['connection', 'microphone']
+
 
 ##############################################################################
 
@@ -74,26 +87,31 @@ def execute():
     # run next line to print all colnames after loading the dataset
     # products.columns
     
+    # This helps remove empty rows that accidentally gets scraped
+    products = data_prep.remove_blank_row(products,colnames['COLNAME_TITLE'])
+    
     
     # clean the about / description text and put them in column: 'about_text_clean'
-    print('Start data preparation')
-    data_prep.about_prep(products,colnames['COLNAME_ABOUT'])
+    if (colnames['COLNAME_ABOUT'] != ''):
+        print('Start about/description preparation')
+        data_prep.about_prep(products,colnames['COLNAME_ABOUT'])
+        
+        
+    # =============================================================================
+    #     # This is useful for determining what keywords to search for each feature
+    #     # exploratory analysis
+    #     print('Start Word Frequency Analysis')
+    #     word_freq = word_freq_analysis(products, 1, 'noise')
+    #     trigram_freq = word_freq_analysis(products, 3, 'frequency')
+    #     word_freq_analysis(products, 3, 'noise', trigram_freq)
+    # =============================================================================
+        
+        # Extract features from about/description
+        print('Start Feature Extraction')
+        feat_ext_df = feature_extract(products, features_re)
+        products = pd.concat([products, feat_ext_df], axis=1)
     
-    
-# =============================================================================
-#     # This is useful for determining what keywords to search for each feature
-#     # exploratory analysis
-#     print('Start Word Frequency Analysis')
-#     word_freq = word_freq_analysis(products, 1, 'noise')
-#     trigram_freq = word_freq_analysis(products, 3, 'frequency')
-#     word_freq_analysis(products, 3, 'noise', trigram_freq)
-# =============================================================================
-    
-    # Extract features from about/description
-    print('Start Feature Extraction')
-    feat_ext_df = feature_extraction(products)
-    
-    # Optional flatten the list
+    # Flatten any lists
     if (colnames['COLNAME_FEAT_LABELS'] != ''):
         print('Start List Flattening')
         data_prep.list_clean(products, 
@@ -102,52 +120,42 @@ def execute():
         flattened_feat = list_flatten(products)
         
         # Combine the extracted features and the original dataset
-        products = pd.concat([products, 
-                              feat_ext_df, 
-                              flattened_feat], axis=1)
-    else:
-        # Combine the extracted features and the original dataset
-        products = pd.concat([products, feat_ext_df], axis=1)
+        products = pd.concat([products, flattened_feat], axis=1)    
     
-    products = data_prep.remove_used(products)
-
-    # Remove deocrative strings
-    remove_decorative(products,
-                      num_rating=colnames['COLNAME_NUM_RATING'], 
-                      price=colnames['COLNAME_PRICE'])
+    # Remove used products
+    print('Remove used products')
+    products = data_prep.remove_used(products, colnames['COLNAME_TITLE'])
     
     # Extract numbers from select columns
-    ID_columns = [colnames['COLNAME_RETAILER_ID'],
-                  'UPC',
-                  'manufacturerID']
-    ID_extract(products, ID_columns)
+    print('Extract numerics from columns')
+    numeric_extract(products, numeric_columns)
+    
+    mfrID_extract(products, 'manufacturerID')
     
     # Categorize these columns
+    print('Factorize columns')
     factorize(products, 
               mic_colname='microphone', 
               noise_colname='noise', 
               water_colname='water',
               # This line is specific to walmart, change column names to fit your dataset / or comment out before run
-              wireless_colname='Wireless',
+              wireless_colname=factorize_conn_col,
               # This line is specific to walmart, change column names to fit your dataset / or comment out before run
-              type_colname=['HeadphoneType','HeadphoneStyle','type'])
+              type_colname=factorize_type_col)
 
 
     # Replace blank cells with 0 in these columns
-    feat_replace = ['connection', 'microphone']
+    print('Replace empty cells with 0 in select columns')
     replace_blank(products, feat_replace)
 
-
+    print('Save cleaned csv to: ' + working_dir)
     products.to_csv('products_cleaned'+time.strftime("%Y%m%d-%H%M%S")+'.csv')
 
 execute()
     
     # todo:
-        # feature extraction finish: brand not done
+        # 
         # combine columns
-    
-    
-    
     
     
     

@@ -6,16 +6,20 @@ from nltk.corpus import stopwords
 
 # Clean unstructured text
 def about_prep(products, colnames):
-    colnames = ['about_text','about_details']
-    if (len(colnames) > 1):
+    if (colnames == ''):
+        return
+    if (type(colnames) == list):
         products['about_text_clean'] = products[colnames[0]]
         for i in range(1,len(colnames)-1):
-            products['about_text_clean'] = products['about_text_clean'] + ' ' + products[colnames[i]]
-    
-    products['about_text_clean'] = products[colnames]
+            if (i is not np.nan):
+                products['about_text_clean'] = products['about_text_clean'] + ' ' + products[colnames[i]]
+                
+    else:
+        products['about_text_clean'] = products[colnames]
     
     products['about_text_clean'] = products['about_text_clean'].str.lower()    
-    products['about_text_clean'] = [re.sub('[^a-zA-Z0-9.]', ' ', prod) for prod in products['about_text_clean']]
+    products['about_text_clean'] = [re.sub('[^a-zA-Z0-9.]', ' ', prod) 
+                                    if prod is not np.nan else '' for prod in products['about_text_clean']]
 
 
 #remove '' and []
@@ -28,8 +32,11 @@ def list_clean(products, labels, values):
     products['feat_labels_clean'] = [clean_list_helper(feat_row) for feat_row in products[labels]]
     products['feat_values_clean'] = [clean_list_helper(feat_row) for feat_row in products[values]]
     
+
+def remove_blank_row(products, colname_title):
+    is_blank = pd.isna(products[colname_title])
+    return products[-is_blank]
     
-    
-def remove_used(products):
-    is_used = products['name'].str.contains(r'refurbish|used', flags=re.I)
-    return (products[-is_used])    
+def remove_used(products, colname_title):
+    is_used = products[colname_title].str.contains(r'refurbish|used', flags=re.I)
+    return products[-is_used]
