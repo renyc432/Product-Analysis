@@ -1,6 +1,0 @@
-Avoid CAPTCHA
-1. Rotate user-agent
-2. Rotate IP address
-3. time.sleep(a random amount of time between each request)
-4. Use 'Selenium' to simulate a real browser
-5. 

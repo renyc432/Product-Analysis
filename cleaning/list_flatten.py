@@ -2,6 +2,8 @@ import pandas as pd
 
 # Returns a dataframe with flattened features and same number of rows as the original products
 def list_flatten(products):
+    
+    # get all possible labels
     feat_labels = [label.split(',') for label in products['feat_labels_clean']]
     feat_labels_set = sum(feat_labels,[])
     feat_labels_set = set(feat_labels_set)

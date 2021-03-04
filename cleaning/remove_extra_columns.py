@@ -29,6 +29,12 @@ col_remove_bestbuy = ['about_text',
 
 col_remove = col_remove_walmart
 
+
+# Identify columns to be removed
+# Ideas: remove columns with three words or more except for colnames['COLNAME_TITLE']
+
+
+
 def remove_columns(products, colnames):
     products.drop(colnames, inplace=True, axis=1)
 

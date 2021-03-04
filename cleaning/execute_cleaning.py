@@ -5,49 +5,50 @@ import time
 import data_prep
 import freq_analysis
 from features_extract import numeric_extract
+from features_extract import price_extract
 from features_extract import feature_extract
+from features_extract import ID_extract
 from features_extract import mfrID_extract
 from features_extract import factorize
 from features_extract import replace_blank
 from list_flatten import list_flatten
 from parameters_by_retailer import param_retailer as param
 
+from rating_extract_newegg import rating_extract_newegg
+
 ######################### change these parameters ############################
 path = 'C:\\Users\\roy79\\Desktop\\Research\\product-analysis'
-# this is where the dataset is
-data_path = path+'\\walmart_scraper\\'+'walmart_headphones_openRefine.csv'
 working_dir = path + '\\cleaning'
 
-#DEBUG
-data_path = working_dir+'\\bestbuy_hdphone.csv'
+retailer_name = 'newegg'
 
-retailer_name = 'bestbuy'
+data_path = path+'\\raw_data\\'+retailer_name+'_hdphone.csv'
+products = pd.read_csv(data_path)
 
 # d.n change colnames and features_re
 colnames = param[retailer_name]['colnames']
 features_re = param[retailer_name]['features_re']
-
-### The parameters below can be determined by looking at the columns and variable types in the dataset
-### However, some may not be obvious at first; and can be determined after we step through remove_used()
-# set to None if not needed
-# used as arguments in factorize()
-factorize_conn_col_walmart = 'Wireless'
-factorize_type_col_walmart = ['HeadphoneType','HeadphoneStyle','type']
-
-factorize_conn_col_bestbuy = None
-factorize_type_col_bestbuy = 'type'
-
-factorize_conn_col = factorize_conn_col_bestbuy
-factorize_type_col = factorize_type_col_bestbuy
+# used as arguments in factorize(), None by default
+factorize_conn_col = param[retailer_name]['factorize_conn_col']
+factorize_type_col = param[retailer_name]['factorize_type_col']
 
 
 # extract integer/float (ID, price, etc.) from these columns
-numeric_columns = [colnames['COLNAME_NUM_RATING'], 
-                  colnames['COLNAME_PRICE'],
-                  #colnames['COLNAME_RETAILER_ID'],
-                  'UPC']
+numeric_columns = [
+    # For Walmart
+#    colnames['COLNAME_RATING'],
+#    colnames['COLNAME_NUM_RATING'], 
+#    colnames['COLNAME_RETAILER_ID'],
+    '_UPC_'
+    ]
+#'UPC']
+
+
 # replace np.nan in these columns with 0
-feat_replace = ['connection', 'microphone']
+# if bhpv, then '' because it doesn't have a colname_about
+feat_replace = ''
+if (colnames['COLNAME_ABOUT'] != ''):
+    feat_replace = ['_connection_', '_microphone_']
 
 
 ##############################################################################
@@ -88,9 +89,12 @@ def execute():
     # products.columns
     
     # This helps remove empty rows that accidentally gets scraped
+    # DEBUG
+    #print(sum(products['name'] == np.nan))
     products = data_prep.remove_blank_row(products,colnames['COLNAME_TITLE'])
-    
-    
+    # DEBUGs
+    #print(sum(products['name'] == np.nan))
+
     # clean the about / description text and put them in column: 'about_text_clean'
     if (colnames['COLNAME_ABOUT'] != ''):
         print('Start about/description preparation')
@@ -122,34 +126,56 @@ def execute():
         # Combine the extracted features and the original dataset
         products = pd.concat([products, flattened_feat], axis=1)    
     
+    
     # Remove used products
     print('Remove used products')
     products = data_prep.remove_used(products, colnames['COLNAME_TITLE'])
+    
+    # Extract price
+    print('Extract price')
+    price_extract(products,colnames['COLNAME_PRICE_CUR'], colnames['COLNAME_PRICE_ORIG'])
     
     # Extract numbers from select columns
     print('Extract numerics from columns')
     numeric_extract(products, numeric_columns)
     
-    mfrID_extract(products, 'manufacturerID')
+    mfrID_extract(products, '_manufacturerID_')
+    
+    
+    # Extract IDs
+    if (colnames['COLNAME_MODEL'] != ''):
+        print('Extract semi-numeric IDs')
+        ID_extract(products, colnames['COLNAME_MODEL'])
+    
+    
+    # This is for Newegg because its rating is embedded in unstructured text
+    if (retailer_name == 'newegg'):
+        print('Newegg specific cleanup functions')
+        rating_extract_newegg(products,colnames['COLNAME_RATING'])
+        products[colnames['COLNAME_NUM_RATING']] = products[colnames['COLNAME_NUM_RATING']]*(-1)
+    
     
     # Categorize these columns
     print('Factorize columns')
-    factorize(products, 
-              mic_colname='microphone', 
-              noise_colname='noise', 
-              water_colname='water',
-              # This line is specific to walmart, change column names to fit your dataset / or comment out before run
-              wireless_colname=factorize_conn_col,
-              # This line is specific to walmart, change column names to fit your dataset / or comment out before run
-              type_colname=factorize_type_col)
+    
+    if (colnames['COLNAME_ABOUT'] != ''):
+        factorize(products, 
+                  mic_colname='_microphone_', 
+                  noise_colname='_noise_', 
+                  water_colname='_water_',
+                  # This line is specific to walmart, change column names to fit your dataset / or comment out before run
+                  wireless_colname=factorize_conn_col,
+                  # This line is specific to walmart, change column names to fit your dataset / or comment out before run
+                  type_colname=factorize_type_col)
 
 
     # Replace blank cells with 0 in these columns
-    print('Replace empty cells with 0 in select columns')
-    replace_blank(products, feat_replace)
+    if (feat_replace != ''):
+        print('Replace empty cells with 0 in select columns')
+        replace_blank(products, feat_replace)
 
     print('Save cleaned csv to: ' + working_dir)
-    products.to_csv('products_cleaned'+time.strftime("%Y%m%d-%H%M%S")+'.csv')
+    products.to_csv(retailer_name+'_hdphone_cleaned_',index=False)
 
 execute()
     

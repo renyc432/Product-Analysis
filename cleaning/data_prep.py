@@ -1,21 +1,21 @@
 import pandas as pd
 import numpy as np
 import re
-import nltk
-from nltk.corpus import stopwords
 
 # Clean unstructured text
-def about_prep(products, colnames):
-    if (colnames == ''):
+def about_prep(products, col_about):
+    
+#    col_about = colnames['COLNAME_ABOUT']
+    if (col_about == ''):
         return
-    if (type(colnames) == list):
-        products['about_text_clean'] = products[colnames[0]]
-        for i in range(1,len(colnames)-1):
+    if (type(col_about) == list):
+        products['about_text_clean'] = products[col_about[0]].astype(str)
+        for i in range(1,len(col_about)-1):
             if (i is not np.nan):
-                products['about_text_clean'] = products['about_text_clean'] + ' ' + products[colnames[i]]
+                products['about_text_clean'] = products['about_text_clean'] + ' ' + products[col_about[i]].astype(str)
                 
     else:
-        products['about_text_clean'] = products[colnames]
+        products['about_text_clean'] = products[col_about].astype(str)
     
     products['about_text_clean'] = products['about_text_clean'].str.lower()    
     products['about_text_clean'] = [re.sub('[^a-zA-Z0-9.]', ' ', prod) 
@@ -38,5 +38,5 @@ def remove_blank_row(products, colname_title):
     return products[-is_blank]
     
 def remove_used(products, colname_title):
-    is_used = products[colname_title].str.contains(r'refurbish|used', flags=re.I)
+    is_used = products[colname_title].str.contains(r'refurbish|used', flags=re.I, na=False)
     return products[-is_used]
